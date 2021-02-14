@@ -1,0 +1,130 @@
+---
+title: "RHays Prediction Assignment"
+author: "RHays"
+date: "2/9/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+# Introduction
+### Background
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://web.archive.org/web/20161224072740/http:/groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+
+### Data
+The training data for this project are available here:
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+The test data are available here:
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+### Project Goal
+The goal of my project is to predict the manner in which they did the exercise. This is the "classe" variable in the training set. I may use any of the other variables to predict with. I will create a report: 
+
+* describing how I built my model
+
+* how I used cross validation 
+
+* what I think the expected out of sample error is 
+
+* and why you made the choices you did 
+
+I will also use my prediction model to predict 20 different test cases.
+
+### Obtaining the Data
+```{r}
+rm(list=ls())
+library(lattice); library(ggplot2); library(caret); library(randomForest); library(rpart); library(rpart.plot);
+```
+
+```{r}
+trainingdata <-"https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+testdata <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+
+download.file(trainingdata, destfile = "pml-training.csv")
+download.file(testdata, destfile = "pml-testing.csv")
+
+set.seed(100)
+
+trainingdata <- read.csv("pml-training.csv", na.strings=c("NA","#DIV/0!", ""))
+testingdata <- read.csv("pml-testing.csv", na.strings=c("NA","#DIV/0!", ""))
+
+trainingdata$classe <- as.factor(trainingdata$classe)
+
+
+trainingdata[, 7:159] <- lapply(trainingdata[,7:159], as.numeric)
+testingdata[, 7:159] <- lapply(testingdata[,7:159], as.numeric)
+
+```
+### Data QC and Integrity
+```{r}
+#names(testingdata)
+#dim(trainingdata)
+#dim(testingdata)
+#summary(trainingdata)
+#summary(testingdata)
+#str(trainingdata)
+#str(testingdata)
+```
+### Remove cloumns with all NA data
+### Exclude non-relevant columns
+```{r}
+trainingdata <-trainingdata[,colSums(is.na(trainingdata)) == 0]
+testingdata <-testingdata[,colSums(is.na(testingdata)) == 0]
+
+trainingdata <-trainingdata[,-c(1:7)]
+testingdata <-testingdata[,-c(1:7)]
+```
+### Paritioing the data
+```{r}
+trainset <- createDataPartition(y=trainingdata$classe, p=0.75, list=FALSE)
+Train75 <- trainingdata[trainset, ] 
+TrainTest25 <- trainingdata[-trainset, ]
+```
+### Plot Variable Levels
+```{r}
+
+plot(Train75$classe, col="green", main="Levels of classe within the 75% Training data set", xlab="Variable:classe", ylab="Frequency")
+```
+### Model #1: Decision Tree
+```{r}
+Model_1_Decision_Tree <- rpart(classe ~ ., data=Train75, method="class")
+prediction1 <- predict(Model_1_Decision_Tree, TrainTest25, type = "class")
+
+# Plot the Decision Tree
+rpart.plot(Model_1_Decision_Tree, main="Classe Decision Tree", extra=102, under=TRUE, faclen=0)
+```
+# # Test results on our subTesting data set:
+```{r}
+confusionMatrix(prediction1, TrainTest25$classe)
+```
+### Model #2: Random Forrest
+
+```{r}
+Model_2_R_Forrest <- randomForest(classe ~. , data=Train75, method="class")
+
+# Predicting:
+prediction2 <- predict(Model_2_R_Forrest, TrainTest25, type = "class")
+
+# Test results on TrainTest25 data set:
+confusionMatrix(prediction2, TrainTest25$classe)
+```
+### Selecting the best model
+Based on a comparison of the accuracy levels between the two models,the Random Forests model is the better model for determining how well the exercises were performed. 
+The accuracy of the Random Forest model was 0.9967 (95% CI: (0.9947, 0.9981). 
+While the Decision Tree model had an accuracy of 0.748 (0.7356, 0.7601). 
+The expected out-of-sample error is estimated at 0.005, or 0.5%.
+
+
+### Prediction on original Testing Data Set
+```{r}
+# predict outcome levels on the original Testing data set using Random Forest algorithm
+Prediction <- predict(Model_2_R_Forrest, testingdata, type="class")
+Prediction
+```
+
+
+
+
+
